@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MVMNT Crew Leader Check-In</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#152443;background:#eef3ff;--blue:#1857c9}
+*{box-sizing:border-box}body{margin:0}header{border-top:14px solid #d2d2d2;background:var(--blue);color:#f5f4f2;padding:40px 20px}header div,main{max-width:780px;margin:auto}header strong{letter-spacing:.1em}h1{font-size:clamp(2rem,7vw,3.5rem);line-height:1.02;margin:12px 0}p{line-height:1.55}main{padding:22px 16px 50px}.card{background:#fff;border:1px solid #dae3f7;border-radius:14px;padding:22px;margin:0 0 16px}h2{margin:0 0 12px;color:var(--blue);font-size:1.35rem}h3{margin:16px 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}label{display:block;font-weight:bold;margin-bottom:12px}input,select,textarea{display:block;width:100%;margin-top:6px;border:1px solid #9dadcb;border-radius:7px;padding:10px;background:#f8faff;color:#152443;font:inherit;font-weight:normal;min-height:44px}textarea{resize:vertical}.actions{display:flex;flex-wrap:wrap;gap:10px}button{cursor:pointer;border:1px solid var(--blue);border-radius:8px;padding:12px 16px;color:white;background:var(--blue);font:inherit;font-weight:bold;min-height:44px}button+button{color:var(--blue);background:white}small{display:block;font-weight:normal;margin-top:3px;line-height:1.4}a,button,input,select,textarea{outline-offset:3px}@media(max-width:550px){.grid{grid-template-columns:1fr;gap:0}.card{padding:17px}}
+</style>
+</head>
+<body>
+<header><div><strong>MVMNT</strong><h1>CREW LEADER CHECK-IN</h1><p>We want to know how you’re doing and how we can support you and your Crew.</p></div></header>
+<main>
+<form>
+<section class="card grid" aria-label="Your details"><label>Name<input name="Name" autocomplete="name" maxlength="100" required></label><label>Crew<input name="Crew" maxlength="100" required></label></section>
+<section class="card"><h2>How are you doing?</h2><p>Rate each area from 1 to 10. <strong>1</strong> means really struggling and <strong>10</strong> means doing great.</p><div class="grid" id="ratings"></div></section>
+<section class="card"><h2>Your Crew &amp; how we can help</h2><div id="questions"></div></section>
+<section class="card"><h2>Send your check-in</h2><p>Share your completed check-in with Joel using your messaging app, or copy the answers and send them directly. This page does not store responses.</p><div class="actions"><button type="submit" id="share">Share responses</button><button type="button" id="copy">Copy responses</button><button type="button" id="download">Download responses</button></div><p id="status" role="status"></p></section>
+</form></main>
+<script>
+const form = document.querySelector('form');
+const status = document.querySelector('#status');
+const dimensions = ['Emotionally','Relationally','Spiritually'];
+for(const [heading,hints] of [
+  ['Personally',['How are you feeling lately?','How connected and supported do you feel?','How is your walk with Jesus?']],
+  ['As a Crew leader',['How does leading feel lately?','How connected are you to your Crew?','How are you doing spiritually as you lead others?']]
+]){
+  const group = document.createElement('div');
+  const title = document.createElement('h3');
+  title.textContent = heading;
+  group.append(title);
+  dimensions.forEach((dimension,index)=>{
+    const label = document.createElement('label');
+    label.textContent = dimension;
+    const hint = document.createElement('small');
+    hint.textContent = hints[index];
+    const select = document.createElement('select');
+    select.name = heading + ' · ' + dimension;
+    select.setAttribute('aria-label',select.name + '. ' + hints[index]);
+    select.add(new Option('Choose a rating',''));
+    for(let n=1;n<=10;n++) select.add(new Option(String(n),String(n)));
+    label.append(hint,select);
+    group.append(label);
+  });
+  document.querySelector('#ratings').append(group);
+}
+for(const question of [
+  'How is your Crew going overall? What are you noticing about connection and participation?',
+  'What is one win or sign of spiritual growth you’ve seen in your Crew?',
+  'What feels challenging right now, personally or in your Crew?',
+  'How can we help you personally or help you lead your Crew?',
+  'How can we pray for you and your Crew? Would you like someone to follow up?'
+]){
+  const label = document.createElement('label');
+  label.textContent = question;
+  const answer = document.createElement('textarea');
+  answer.name = question;
+  answer.rows = 3;
+  answer.maxLength = 2000;
+  label.append(answer);
+  document.querySelector('#questions').append(label);
+}
+function response(){
+  if(!form.reportValidity()) return '';
+  const data = Array.from(new FormData(form)).filter(([,value])=>value.trim());
+  return ['MVMNT CREW LEADER CHECK-IN',...data.map(([question,value])=>question+'\n'+value.trim())].join('\n\n');
+}
+form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const message=response();
+  if(!message) return;
+  try{
+    await navigator.share({title:'MVMNT Crew Leader Check-In',text:message});
+    status.textContent='Check your messaging app to confirm it was sent.';
+  }catch(error){
+    if(error.name!=='AbortError') status.textContent='Use Copy responses or Download responses to send your check-in directly.';
+  }
+});
+document.querySelector('#copy').addEventListener('click',async ()=>{
+  const message=response();
+  if(!message) return;
+  try{
+    await navigator.clipboard.writeText(message);
+    status.textContent='Copied. Paste your answers into a message to Joel.';
+  }catch{
+    status.textContent='Clipboard unavailable. Use Download responses to save a copy.';
+  }
+});
+document.querySelector('#download').addEventListener('click',()=>{
+  const message=response();
+  if(!message) return;
+  const url=URL.createObjectURL(new Blob([message],{type:'text/plain'}));
+  const link=document.createElement('a');
+  link.href=url;
+  link.download='MVMNT-Crew-Leader-Check-In.txt';
+  link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status.textContent='Downloaded. Attach the file to a message to Joel.';
+});
+if(!navigator.share) document.querySelector('#share').hidden=true;
+</script>
+</body>
+</html>
